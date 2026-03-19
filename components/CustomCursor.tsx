@@ -24,7 +24,7 @@ export default function CustomCursor() {
     let lastY = my;
 
     // 🎯 mouse move
-    const onMove = (e) => {
+    const onMove = (e: MouseEvent) => {
       mx = e.clientX;
       my = e.clientY;
 
