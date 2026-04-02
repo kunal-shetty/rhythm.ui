@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { GradientButton, OutlineButton, GhostButton, IconButton } from "@/lib/components/buttons";
-import { TiltCard, StatCard, ProfileCard } from "@/lib/components/cards";
+import { StatCard, ProfileCard } from "@/lib/components/cards";
 import { Badge, StatusBadge, CountBadge } from "@/lib/components/badges";
 import { TextInput, SearchInput, Textarea } from "@/lib/components/inputs";
 import { Toggle, Checkbox } from "@/lib/components/toggles";
@@ -321,14 +321,14 @@ export default function ComponentsShowcase() {
         {/* Cards */}
         <ShowcaseSection title="Cards" id="cards">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 [perspective:1200px]">
-            <TiltCard className="p-6">
+            {/* <TiltCard className="p-6">
               <h3 className="text-[0.95rem] font-semibold mb-2">Tilt Card</h3>
               <p className="text-muted2 text-[0.83rem] leading-relaxed">Move your cursor over this card to see the 3D tilt effect with spotlight glow.</p>
               <div className="mt-4 flex gap-2">
                 <Badge variant="violet" size="sm">React</Badge>
                 <Badge variant="muted" size="sm">framer-motion</Badge>
               </div>
-            </TiltCard>
+            </TiltCard> */}
             <StatCard
               value="12,480"
               label="Monthly Active Users"
