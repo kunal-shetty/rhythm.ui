@@ -20,46 +20,46 @@ export function GlassCard({ children, className = "", ...props }: CardProps) {
 }
 
 // ─── TiltCard ──────────────────────────────────────────────────────────────
-export function TiltCard({ children, className = "", ...props }: CardProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const smx = useSpring(mx, { stiffness: 220, damping: 22 });
-  const smy = useSpring(my, { stiffness: 220, damping: 22 });
-  const rotX = useTransform(smy, [-0.5, 0.5], ["7deg", "-7deg"]);
-  const rotY = useTransform(smx, [-0.5, 0.5], ["-7deg", "7deg"]);
-  const glowX = useMotionValue(50);
-  const glowY = useMotionValue(50);
+// export function TiltCard({ children, className = "", ...props }: CardProps) {
+//   const ref = useRef<HTMLDivElement>(null);
+//   const mx = useMotionValue(0);
+//   const my = useMotionValue(0);
+//   const smx = useSpring(mx, { stiffness: 220, damping: 22 });
+//   const smy = useSpring(my, { stiffness: 220, damping: 22 });
+//   const rotX = useTransform(smy, [-0.5, 0.5], ["7deg", "-7deg"]);
+//   const rotY = useTransform(smx, [-0.5, 0.5], ["-7deg", "7deg"]);
+//   const glowX = useMotionValue(50);
+//   const glowY = useMotionValue(50);
 
-  const spotBg = useTransform([glowX, glowY], ([gx, gy]: number[]) =>
-    `radial-gradient(120px circle at ${gx}% ${gy}%, rgba(124,111,255,0.13), transparent 80%)`
-  );
+//   const spotBg = useTransform([glowX, glowY], ([gx, gy]: number[]) =>
+//     `radial-gradient(120px circle at ${gx}% ${gy}%, rgba(124,111,255,0.13), transparent 80%)`
+//   );
 
-  const onMove = (e: React.MouseEvent) => {
-    const r = ref.current!.getBoundingClientRect();
-    mx.set((e.clientX - r.left) / r.width - 0.5);
-    my.set((e.clientY - r.top) / r.height - 0.5);
-    glowX.set(((e.clientX - r.left) / r.width) * 100);
-    glowY.set(((e.clientY - r.top) / r.height) * 100);
-  };
+//   const onMove = (e: React.MouseEvent) => {
+//     const r = ref.current!.getBoundingClientRect();
+//     mx.set((e.clientX - r.left) / r.width - 0.5);
+//     my.set((e.clientY - r.top) / r.height - 0.5);
+//     glowX.set(((e.clientX - r.left) / r.width) * 100);
+//     glowY.set(((e.clientY - r.top) / r.height) * 100);
+//   };
 
-  return (
-    <motion.div
-      ref={ref}
-      onMouseMove={onMove}
-      onMouseLeave={() => { mx.set(0); my.set(0); }}
-      style={{ rotateX: rotX, rotateY: rotY, transformStyle: "preserve-3d" }}
-      className={`relative bg-surface border border-white/[0.07] rounded-[18px] overflow-hidden group hover:border-violet/30 hover:shadow-card transition-[border-color,box-shadow] duration-300 ${className}`}
-      {...props}
-    >
-      <motion.div
-        className="absolute inset-0 pointer-events-none z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{ background: spotBg }}
-      />
-      <div className="relative z-10">{children}</div>
-    </motion.div>
-  );
-}
+//   return (
+//     <motion.div
+//       ref={ref}
+//       onMouseMove={onMove}
+//       onMouseLeave={() => { mx.set(0); my.set(0); }}
+//       style={{ rotateX: rotX, rotateY: rotY, transformStyle: "preserve-3d" }}
+//       className={`relative bg-surface border border-white/[0.07] rounded-[18px] overflow-hidden group hover:border-violet/30 hover:shadow-card transition-[border-color,box-shadow] duration-300 ${className}`}
+//       {...props}
+//     >
+//       <motion.div
+//         className="absolute inset-0 pointer-events-none z-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+//         style={{ background: spotBg }}
+//       />
+//       <div className="relative z-10">{children}</div>
+//     </motion.div>
+//   );
+// }
 
 // ─── StatCard ──────────────────────────────────────────────────────────────
 interface StatCardProps {
