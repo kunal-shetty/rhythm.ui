@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 
 const NAV_LINKS = [
@@ -13,99 +13,360 @@ const NAV_LINKS = [
 ];
 
 export default function Navbar() {
+  const navRef   = useRef<HTMLElement>(null);
   const logoRef  = useRef<HTMLAnchorElement>(null);
   const linksRef = useRef<(HTMLLIElement | null)[]>([]);
   const ctaRef   = useRef<HTMLDivElement>(null);
-  const [scrolled, setScrolled] = useState(false);
+  const pillRef  = useRef<HTMLDivElement>(null);
+
+  const [scrolled,    setScrolled]    = useState(false);
+  const [scrollPct,   setScrollPct]   = useState(0);
+  const [activeLink,  setActiveLink]  = useState<string | null>(null);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [pillStyle,   setPillStyle]   = useState<{ left: number; width: number } | null>(null);
 
   const { scrollY } = useScroll();
-  const blurPx = useTransform(scrollY, [0, 80], [0, 18]);
 
+  /* Scroll-driven blur & border opacity */
+  const rawBlur    = useTransform(scrollY, [0, 100], [0, 22]);
+  const blurPx     = useSpring(rawBlur, { stiffness: 80, damping: 20 });
+  const bgOpacity  = useTransform(scrollY, [0, 80],  [0, 0.82]);
+  const borderOpacity = useTransform(scrollY, [0, 80], [0, 0.1]);
+
+  /* Progress bar width */
   useEffect(() => {
-    const tl = gsap.timeline({ delay: 0.05 });
-    tl.fromTo(logoRef.current,
-      { opacity: 0, x: -20 },
-      { opacity: 1, x: 0, duration: 0.65, ease: "power3.out" }
-    )
-    .fromTo(linksRef.current.filter(Boolean),
-      { opacity: 0, y: -10 },
-      { opacity: 1, y: 0, stagger: 0.065, duration: 0.5, ease: "power2.out" },
-      "-=0.4"
-    )
-    .fromTo(ctaRef.current,
-      { opacity: 0, x: 20 },
-      { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" },
-      "-=0.45"
-    );
-
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", onScroll);
+    const onScroll = () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollPct(docHeight > 0 ? (scrollTop / docHeight) * 100 : 0);
+      setScrolled(scrollTop > 40);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  /* GSAP entrance */
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ delay: 0.08 });
+
+      tl.fromTo(logoRef.current,
+        { opacity: 0, x: -24, filter: "blur(4px)" },
+        { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.7, ease: "power3.out" }
+      )
+      .fromTo(linksRef.current.filter(Boolean),
+        { opacity: 0, y: -12, filter: "blur(3px)" },
+        { opacity: 1, y: 0, filter: "blur(0px)", stagger: 0.07, duration: 0.55, ease: "power2.out" },
+        "-=0.42"
+      )
+      .fromTo(ctaRef.current,
+        { opacity: 0, x: 24, filter: "blur(4px)" },
+        { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.65, ease: "power3.out" },
+        "-=0.48"
+      );
+    });
+    return () => ctx.revert();
+  }, []);
+
+  /* Floating pill hover tracker */
+  const updatePill = useCallback((el: HTMLElement | null) => {
+    if (!el || !navRef.current) { setPillStyle(null); return; }
+    const navRect = navRef.current.getBoundingClientRect();
+    const elRect  = el.getBoundingClientRect();
+    setPillStyle({ left: elRect.left - navRect.left, width: elRect.width });
+  }, []);
+
   return (
-    <motion.nav
-      style={{ backdropFilter: `blur(${blurPx}px)`, WebkitBackdropFilter: `blur(${blurPx}px)` }}
-      className={[
-        "fixed top-0 left-0 right-0 z-50 py-4 border-b transition-all duration-300",
-        scrolled ? "bg-bg/80 border-white/[0.07]" : "bg-transparent border-transparent",
-      ].join(" ")}
-    >
-      <div className="max-w-[1160px] mx-auto px-7 flex items-center justify-between">
+    <>
+      {/* ── Scroll progress bar ── */}
+      <motion.div
+        className="fixed top-0 left-0 z-[60] h-[2px] pointer-events-none"
+        style={{
+          width: `${scrollPct}%`,
+          background: "linear-gradient(90deg, #7c6fff, #c084fc, #ff6fa8)",
+          boxShadow: "0 0 8px rgba(124,111,255,0.6)",
+          opacity: scrollPct > 1 ? 1 : 0,
+          transition: "opacity 0.3s",
+        }}
+      />
 
-        {/* Logo */}
-        <Link ref={logoRef} href="/" className="flex items-center gap-2.5 no-underline opacity-0">
-          <span className="w-8 h-8 rounded-[7px] bg-surface border border-white/[0.13] flex items-center justify-center shrink-0">
-            <LogoMark />
-          </span>
-          <span className="text-[1.06rem] font-bold tracking-[-0.05em] text-white">
-            rhythm<span className="text-violet">.ui</span>
-          </span>
-        </Link>
+      {/* ── Nav shell ── */}
+      <motion.nav
+        ref={navRef}
+        className="fixed top-0 left-0 right-0 z-50 py-0"
+        style={{
+          backdropFilter: `blur(${blurPx.get()}px)`,
+          WebkitBackdropFilter: `blur(${blurPx.get()}px)`,
+        }}
+      >
+        {/* Animated bg fill + border */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "rgba(10,8,22,1)",
+            opacity: bgOpacity,
+          }}
+        />
+        <motion.div
+          className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
+          style={{
+            background: "linear-gradient(90deg, transparent 0%, rgba(124,111,255,0.5) 30%, rgba(255,111,168,0.4) 60%, transparent 100%)",
+            opacity: borderOpacity,
+          }}
+        />
 
-        {/* Links */}
-        <ul className="hidden md:flex gap-0.5 list-none m-0 p-0">
-          {NAV_LINKS.map((l, i) => (
-            <li key={l.label} ref={(el) => { linksRef.current[i] = el; }} className="opacity-0">
-              <NavLink href={l.href}>{l.label}</NavLink>
-            </li>
-          ))}
-        </ul>
+        {/* Inner container */}
+        <div className="relative max-w-[1180px] mx-auto px-7">
+          <div className="flex items-center justify-between h-[62px]">
 
-        {/* CTA group */}
-        <div ref={ctaRef} className="flex items-center gap-2.5 opacity-0">
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-[34px] h-[34px] rounded-[8px] flex items-center justify-center bg-surface border border-white/[0.07] text-muted2 hover:text-white hover:border-white/[0.13] transition-colors"
-          >
-            <GitHubIcon />
-          </a>
-          <Link
-            href="/docs"
-            className="flex items-center gap-1.5 bg-grad-btn text-white rounded-[10px] px-[18px] py-[8px] text-[0.84rem] font-medium tracking-[-0.01em] shadow-glow hover:shadow-glow-lg hover:-translate-y-px transition-all duration-200 no-underline"
-          >
-            Get Started <ArrowIcon />
-          </Link>
+            {/* ── Logo ── */}
+            <Link
+              ref={logoRef}
+              href="/"
+              className="flex items-center gap-2.5 no-underline opacity-0 shrink-0 group"
+            >
+              <motion.span
+                className="relative w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0 overflow-hidden"
+                style={{
+                  background: "linear-gradient(135deg, rgba(124,111,255,0.18), rgba(255,111,168,0.1))",
+                  border: "1px solid rgba(124,111,255,0.28)",
+                }}
+                whileHover={{ scale: 1.1, rotate: -4 }}
+                transition={{ type: "spring", stiffness: 350, damping: 18 }}
+              >
+                {/* Inner shine */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ background: "linear-gradient(135deg, rgba(124,111,255,0.2), transparent)" }}
+                />
+                <LogoMark />
+              </motion.span>
+
+              <span className="text-[1.05rem] font-bold tracking-[-0.055em] text-white">
+                rhythm
+                <motion.span
+                  className="inline-block"
+                  style={{
+                    background: "linear-gradient(120deg, #9d8fff 0%, #c084fc 50%, #ff8aaa 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
+                  animate={{
+                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                  }}
+                  transition={{ duration: 5, ease: "linear", repeat: Infinity }}
+                >
+                  .ui
+                </motion.span>
+              </span>
+            </Link>
+
+            {/* ── Desktop nav links ── */}
+            <div className="relative hidden md:block">
+              {/* Floating hover pill */}
+              <AnimatePresence>
+                {pillStyle && (
+                  <motion.div
+                    ref={pillRef}
+                    className="absolute top-1/2 -translate-y-1/2 pointer-events-none rounded-[8px]"
+                    style={{ height: 34 }}
+                    initial={{ opacity: 0, left: pillStyle.left, width: pillStyle.width }}
+                    animate={{ opacity: 1, left: pillStyle.left, width: pillStyle.width }}
+                    exit={{ opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 320, damping: 24 }}
+                  >
+                    <div
+                      className="w-full h-full rounded-[8px]"
+                      style={{
+                        background: "rgba(124,111,255,0.1)",
+                        border: "1px solid rgba(124,111,255,0.18)",
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <ul className="flex gap-0.5 list-none m-0 p-0 items-center">
+                {NAV_LINKS.map((l, i) => (
+                  <li
+                    key={l.label}
+                    ref={(el) => { linksRef.current[i] = el; }}
+                    className="opacity-0"
+                  >
+                    <NavLink
+                      href={l.href}
+                      isActive={activeLink === l.href}
+                    >
+                      {l.label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* ── CTA group ── */}
+            <div ref={ctaRef} className="flex items-center gap-2.5 opacity-0">
+
+              {/* GitHub icon button */}
+              <motion.a
+                href="https://github.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative w-[34px] h-[34px] rounded-[8px] flex items-center justify-center overflow-hidden"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "rgba(180,176,210,0.7)",
+                }}
+                whileHover={{ scale: 1.08, color: "#fff" }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: "spring", stiffness: 350, damping: 18 }}
+              >
+                {/* Hover shimmer */}
+                <motion.div
+                  className="absolute inset-0 opacity-0"
+                  style={{ background: "radial-gradient(circle at center, rgba(124,111,255,0.15), transparent 70%)" }}
+                  whileHover={{ opacity: 1 }}
+                />
+                <GitHubIcon />
+              </motion.a>
+
+              {/* Get Started CTA */}
+              <motion.div whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.97 }} transition={{ type: "spring", stiffness: 320, damping: 18 }}>
+                <Link
+                  href="/docs"
+                  className="relative flex items-center gap-1.5 text-white rounded-[10px] px-[18px] py-[8px] text-[0.84rem] font-medium tracking-[-0.015em] no-underline overflow-hidden"
+                  style={{
+                    background: "linear-gradient(135deg, #7c6fff 0%, #a260f5 55%, #d467a8 100%)",
+                    boxShadow: "0 0 0 1px rgba(124,111,255,0.35), 0 4px 20px rgba(124,111,255,0.22), 0 1px 4px rgba(0,0,0,0.25)",
+                  }}
+                >
+                  {/* Animated shine */}
+                  <motion.span
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ background: "linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.15) 50%, transparent 65%)" }}
+                    animate={{ x: ["-100%", "200%"] }}
+                    transition={{ duration: 3.5, ease: "easeInOut", repeat: Infinity, repeatDelay: 2 }}
+                  />
+                  Get Started <ArrowIcon />
+                </Link>
+              </motion.div>
+
+              {/* Mobile menu toggle */}
+              <motion.button
+                className="md:hidden w-[34px] h-[34px] rounded-[8px] flex flex-col items-center justify-center gap-[5px]"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+                onClick={() => setMobileOpen(o => !o)}
+                whileTap={{ scale: 0.94 }}
+                aria-label="Toggle menu"
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="block h-px w-[16px] rounded-full bg-white"
+                    style={{ opacity: i === 1 ? 0.6 : 0.9 }}
+                    animate={mobileOpen ? {
+                      rotate:      i === 0 ? 45 : i === 2 ? -45 : 0,
+                      y:           i === 0 ?  5 : i === 2 ? -5  : 0,
+                      opacity:     i === 1 ? 0 : 1,
+                      width:       i === 1 ? 0 : 16,
+                    } : {
+                      rotate:  0,
+                      y:       0,
+                      opacity: i === 1 ? 0.6 : 0.9,
+                      width:   16,
+                    }}
+                    transition={{ type: "spring", stiffness: 300, damping: 22 }}
+                  />
+                ))}
+              </motion.button>
+            </div>
+          </div>
         </div>
-      </div>
-    </motion.nav>
+
+        {/* ── Mobile drawer ── */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 220, damping: 28 }}
+              className="md:hidden overflow-hidden"
+              style={{
+                background: "rgba(10,8,22,0.97)",
+                borderTop: "1px solid rgba(124,111,255,0.12)",
+                backdropFilter: "blur(20px)",
+              }}
+            >
+              <ul className="list-none m-0 p-0 px-5 py-3 flex flex-col gap-0.5">
+                {NAV_LINKS.map((l, i) => (
+                  <motion.li
+                    key={l.label}
+                    initial={{ opacity: 0, x: -14 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06, type: "spring", stiffness: 260, damping: 22 }}
+                  >
+                    <Link
+                      href={l.href}
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-3.5 py-3 text-[0.9rem] tracking-[-0.01em] rounded-[8px] no-underline transition-colors"
+                      style={{ color: "rgba(180,176,210,0.8)" }}
+                    >
+                      {l.label}
+                    </Link>
+                  </motion.li>
+                ))}
+              </ul>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.nav>
+    </>
   );
 }
 
-/* Animated nav link with GSAP micro-lift */
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+/* ── Nav link with pointer-tracked state ── */
+function NavLink({
+  href,
+  children,
+  isActive,
+}: {
+  href: string;
+  children: React.ReactNode;
+  isActive: boolean;
+}) {
   const ref = useRef<HTMLAnchorElement>(null);
+
   return (
     <Link
       ref={ref}
       href={href}
-      onMouseEnter={() => gsap.to(ref.current, { y: -2, duration: 0.2, ease: "power2.out" })}
-      onMouseLeave={() => gsap.to(ref.current, { y: 0, duration: 0.3, ease: "power2.out" })}
-      className="block px-3.5 py-[7px] text-muted2 text-[0.86rem] font-normal tracking-[-0.01em] rounded-lg hover:text-white hover:bg-white/5 transition-colors no-underline"
+      className="relative block px-3.5 py-[7px] text-[0.85rem] tracking-[-0.01em] rounded-lg no-underline transition-colors duration-150 z-10"
+      style={{
+        color: isActive ? "rgba(220,216,255,0.95)" : "rgba(160,155,200,0.7)",
+        fontWeight: isActive ? 450 : 400,
+      }}
     >
       {children}
+
+      {/* Active dot indicator */}
+      <AnimatePresence>
+        {isActive && (
+          <motion.span
+            className="absolute bottom-[5px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full"
+            style={{ background: "rgba(124,111,255,0.9)" }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          />
+        )}
+      </AnimatePresence>
     </Link>
   );
 }
@@ -114,10 +375,17 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 function LogoMark() {
   return (
     <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
-      <path d="M3 10 Q6.5 2 10 10 Q13.5 18 17 10" stroke="url(#navLG)" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+      <path
+        d="M3 10 Q6.5 2 10 10 Q13.5 18 17 10"
+        stroke="url(#navLG)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        fill="none"
+      />
       <defs>
         <linearGradient id="navLG" x1="3" y1="10" x2="17" y2="10" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#7c6fff" /><stop offset="1" stopColor="#ff6fa8" />
+          <stop stopColor="#9d8fff" />
+          <stop offset="1" stopColor="#ff8aaa" />
         </linearGradient>
       </defs>
     </svg>

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import AnimatedBlob from "./AnimatedBlob";
 
 const FEATURES = [
   { icon: <BoltIcon />,     bg: "bg-violet/[0.12]", line: "from-violet", title: "Copy & Paste Ready",    desc: "Every component ships with clean, production-ready code. Drop it straight into your project with zero modification." },
@@ -23,6 +24,7 @@ const item = {
 export default function Features() {
   return (
     <section id="features" className="relative z-10 py-24 border-t border-white/[0.07]">
+      <AnimatedBlob/>
       <div className="max-w-[1160px] mx-auto px-7">
         <motion.div
           initial={{ opacity: 0, y: 28 }}

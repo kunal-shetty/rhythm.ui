@@ -23,7 +23,6 @@ export default function Home() {
       <main>
         <Hero />
         <Marquee />
-        <Stats />
         <ComponentsPreview />
         <Features />
         <Frameworks />
